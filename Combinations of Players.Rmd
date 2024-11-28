@@ -1,0 +1,179 @@
+---
+title: "Fantasy Gootball"
+author: "Paul Merica"
+date: "2024-08-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+
+library(dplyr)
+library(tidyr)
+library(purrr)
+```
+
+```{r}
+data = read.csv("Copy of DK Milly CSV - Sheet1.csv")
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r}
+
+# Convert data to long format for easier manipulation
+data_long <- data %>%
+  pivot_longer(cols = everything(), names_to = "Team", values_to = "Player")
+
+# Function to count combinations of a given size
+count_combinations <- function(player_list, size) {
+  if (length(player_list) < size) return(NULL)  # Not enough players to form a combination
+  
+  # Create combinations
+  player_combos <- combn(player_list, size, simplify = FALSE)
+  
+  # Convert list of combinations to data frame and count occurrences
+  combo_counts <- data.frame(Combination = sapply(player_combos, paste, collapse = ", "))
+  combo_counts <- combo_counts %>%
+    group_by(Combination) %>%
+    summarise(Count = n(), .groups = 'drop') %>%
+    arrange(desc(Count))  # Sort by count in descending order
+  
+  return(combo_counts)
+}
+
+# Function to get counts for combinations within a single team
+get_team_combinations <- function(team_data, size) {
+  players <- team_data$Player
+  if (length(players) < size) return(NULL)
+  
+  combo_counts <- count_combinations(players, size)
+  return(combo_counts)
+}
+
+# Calculate combinations of 2 and 3 players
+combinations_2 <- data_long %>%
+  group_by(Team) %>%
+  group_split() %>%
+  map_df(~ get_team_combinations(., 2)) %>%
+  group_by(Combination) %>%
+  summarise(Count = sum(Count), .groups = 'drop') %>%
+  arrange(desc(Count))
+
+combinations_3 <- data_long %>%
+  group_by(Team) %>%
+  group_split() %>%
+  map_df(~ get_team_combinations(., 3)) %>%
+  group_by(Combination) %>%
+  summarise(Count = sum(Count), .groups = 'drop') %>%
+  arrange(desc(Count))
+
+# Save the results to CSV files
+write.csv(combinations_2, "combinations_2.csv", row.names = FALSE)
+write.csv(combinations_3, "combinations_3.csv", row.names = FALSE)
+
+# Print results (optional)
+print(combinations_2)
+print(combinations_3)
+
+```
+```{r}
+print(data_long)
+
+```
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+
+```{r}
+# Load necessary libraries
+library(dplyr)
+library(tidyr)
+library(purrr)
+
+# Convert data to long format for easier manipulation
+data_long <- data %>%
+  pivot_longer(cols = everything(), names_to = "Team", values_to = "Player") %>%
+  filter(Player != "") # Remove any empty values
+
+# Function to count 2-player combinations within a single team
+count_combinations_2 <- function(team_data) {
+  players <- team_data$Player
+  if (length(players) < 2) return(NULL)
+  
+  # Create combinations of 2 players
+  player_combos <- combn(players, 2, simplify = FALSE)
+  
+  # Convert list of combinations to data frame
+  combo_df <- do.call(rbind, lapply(player_combos, function(combo) {
+    data.frame(Player1 = combo[1], Player2 = combo[2], stringsAsFactors = FALSE)
+  }))
+  
+  combo_df %>%
+    mutate(Count = 1) %>%
+    group_by(Player1, Player2) %>%
+    summarise(Count = n(), .groups = 'drop') %>%
+    arrange(desc(Count))
+}
+
+# Function to count 3-player combinations within a single team
+count_combinations_3 <- function(team_data) {
+  players <- team_data$Player
+  if (length(players) < 3) return(NULL)
+  
+  # Create combinations of 3 players
+  player_combos <- combn(players, 3, simplify = FALSE)
+  
+  # Convert list of combinations to data frame
+  combo_df <- do.call(rbind, lapply(player_combos, function(combo) {
+    data.frame(Player1 = combo[1], Player2 = combo[2], Player3 = combo[3], stringsAsFactors = FALSE)
+  }))
+  
+  combo_df %>%
+    mutate(Count = 1) %>%
+    group_by(Player1, Player2, Player3) %>%
+    summarise(Count = n(), .groups = 'drop') %>%
+    arrange(desc(Count))
+}
+
+# Get counts for combinations of 2 players across all teams
+combinations_2 <- data_long %>%
+  group_by(Team) %>%
+  group_split() %>%
+  map_df(~ count_combinations_2(.)) %>%
+  group_by(Player1, Player2) %>%
+  summarise(Count = sum(Count), .groups = 'drop') %>%
+  arrange(desc(Count))
+
+# Get counts for combinations of 3 players across all teams
+combinations_3 <- data_long %>%
+  group_by(Team) %>%
+  group_split() %>%
+  map_df(~ count_combinations_3(.)) %>%
+  group_by(Player1, Player2, Player3) %>%
+  summarise(Count = sum(Count), .groups = 'drop') %>%
+  arrange(desc(Count))
+
+# Save the results to CSV files
+write.csv(combinations_2, "player_combinations_2.csv", row.names = FALSE)
+write.csv(combinations_3, "player_combinations_3.csv",  row.names = FALSE)
+
+print(combinations_2)
+
+print(combinations_3)          
+          
+```
+
